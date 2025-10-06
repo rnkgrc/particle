@@ -1,0 +1,148 @@
+# particle
+授業で作ったレポジトリ
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>豪華な線香花火風マウス軌跡 (デバッグ安定版)</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #000000;
+        }
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="particleCanvas"></canvas>
+    <script>
+        // --- 設定 ---
+        const MAX_PARTICLES = 350; // 最大パーティクル数 (少し増やしました)
+        const PARTICLE_LIFESPAN = 90;
+        const FRICTION_RATE = 0.95;
+        const EMISSION_RATE = 3; // mousemoveイベントで生成するパーティクルの数 (増加)
+
+        // --- 初期設定 ---
+        const canvas = document.getElementById('particleCanvas');
+        const ctx = canvas.getContext('2d');
+        let particles = [];
+        let mouseX = 0;
+        let mouseY = 0;
+
+        // Canvasのサイズを設定
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        
+        // HSLのランダムな色を生成
+        function getRandomColor() {
+            let hue = Math.random() * 90;
+            if (Math.random() < 0.1) {
+                hue = Math.random() * 30 + 330;
+            }
+            const saturation = Math.random() * 20 + 80;
+            const lightness = Math.random() * 10 + 75;
+            return `hsl(${hue}, ${saturation}%, ${lightness}%)`; 
+        }
+
+        // --- イベントリスナー ---
+        window.addEventListener('resize', resizeCanvas);
+        
+        // マウスが動くたびに、直接パーティクルを生成（最も確実な方法）
+        window.addEventListener('mousemove', (event) => {
+            mouseX = event.clientX;
+            mouseY = event.clientY;
+            
+            for (let i = 0; i < EMISSION_RATE; i++) {
+                createParticle(mouseX, mouseY);
+            }
+        });
+
+        // --- パーティクルクラス ---
+        class Particle {
+            constructor(x, y) {
+                this.x = x + (Math.random() - 0.5) * 5;
+                this.y = y + (Math.random() - 0.5) * 5;
+                
+                this.vx = (Math.random() - 0.5) * 4; 
+                this.vy = (Math.random() - 0.5) * 4;
+
+                this.size = Math.random() * 2.5 + 0.8;
+                this.life = PARTICLE_LIFESPAN;
+                this.color = getRandomColor();
+                this.originalLife = PARTICLE_LIFESPAN;
+            }
+            
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.life--; 
+                
+                this.vx *= FRICTION_RATE; 
+                this.vy *= FRICTION_RATE;
+                
+                this.size *= 0.985;
+            }
+            
+            draw() {
+                let alpha = (this.life / this.originalLife) * Math.min(this.size, 1);
+                
+                if (this.life < this.originalLife * 0.2) {
+                    alpha *= (Math.sin(this.life * 0.5) * 0.5 + 0.5);
+                }
+
+                ctx.globalAlpha = alpha;
+                
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                if (this.size > 0.05) { 
+                    ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                
+                ctx.globalAlpha = 1;
+            }
+        }
+        
+        // --- パーティクル生成と管理 ---
+        function createParticle(x, y) {
+            // 最大数を超えていたら、最も古い（最初の）パーティクルを削除
+            while (particles.length >= MAX_PARTICLES) {
+                particles.shift();
+            }
+            // 新しいパーティクルを追加
+            particles.push(new Particle(x, y));
+        }
+        
+        // 全てのパーティクルを更新・描画
+        function drawParticles() {
+            // 寿命が尽きたパーティクルをフィルタリング
+            particles = particles.filter(p => p.life > 0); 
+            
+            particles.forEach(p => {
+                p.update();
+                p.draw();
+            });
+        }
+        
+        // --- メインループ ---
+        function loop() {
+            // 残像効果
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.08)'; 
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            drawParticles();
+            
+            requestAnimationFrame(loop);
+        }
+        
+        // 初期化
+        resizeCanvas();
+        loop();
+    </script>
+</body>
+</html>
